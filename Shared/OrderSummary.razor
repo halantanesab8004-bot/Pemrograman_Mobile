@@ -1,0 +1,53 @@
+@using BlazingPizzaApp.API.Models
+@using BlazingPizzaApp.API.Services
+@inject OrderState OrderState
+@implements IDisposable
+
+<div class="order-summary">
+    @if (OrderState.CurrentOrder?.Pizzas == null || !OrderState.CurrentOrder.Pizzas.Any())
+    {
+        <div class="order-empty">Your order is empty.</div>
+    }
+    else
+    {
+        <h4>Your Order</h4>
+        <ul style="list-style:none;padding:0;margin:0">
+            @foreach (var p in OrderState.CurrentOrder.Pizzas)
+            {
+                <li style="padding:8px 0;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between">
+                    <div>
+                        <div style="font-weight:600">@((p.PizzaSpecial?.Name) ?? "(unknown)")</div>
+                        <div style="font-size:0.9rem;color:#666">Size: @p.DefaultSize</div>
+                    </div>
+                    <div style="text-align:right">
+                        <div>@((p.PizzaSpecial?.BasePrice ?? 0m).ToString("C"))</div>
+                        <button class="select-btn" style="margin-top:6px" @onclick="() => Remove(p)">Remove</button>
+                    </div>
+                </li>
+            }
+        </ul>
+
+        <div style="margin-top:12px;font-weight:700">Total: @Total.ToString("C")</div>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        OrderState.OnChange += OnOrderChanged;
+    }
+
+    private void OnOrderChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        OrderState.OnChange -= OnOrderChanged;
+    }
+
+    private void Remove(Pizza p)
+    {
+        OrderState.RemovePizza(p);
+    }
+
+    private decimal Total => OrderState.CurrentOrder?.Pizzas?.Sum(p => p.PizzaSpecial?.BasePrice ?? 0m) ?? 0m;
+}

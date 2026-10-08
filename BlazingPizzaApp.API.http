@@ -1,0 +1,6 @@
+@BlazingPizzaApp.API_HostAddress = https://localhost:7219
+
+GET {{BlazingPizzaApp.API_HostAddress}}/api/PizzaSpecials
+Accept: application/json
+
+###

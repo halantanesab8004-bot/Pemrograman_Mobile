@@ -1,0 +1,35 @@
+:root{
+    --accent:#e23a1a;
+    --muted:#6b6b6b;
+    --card-bg:#ffffff;
+    --panel-bg:#fbfbfb;
+}
+body{font-family:Segoe UI, Roboto, Arial, sans-serif;background:#f5f5f7;margin:0;color:#222}
+.pizzas-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.pizzas-header h2{margin:0}
+.search-input{padding:8px 12px;border-radius:6px;border:1px solid #ddd;min-width:220px}
+.pizzas-content{display:flex;gap:20px}
+.pizzas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;flex:1}
+.pizza-card{background:var(--card-bg);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.08);overflow:hidden;display:flex;flex-direction:column}
+.pizza-image-wrap{height:140px;background:#eee;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.pizza-image-wrap img{width:100%;height:100%;object-fit:cover;display:block}
+.pizza-body{padding:12px;flex:1}
+.pizza-title{font-weight:600;margin-bottom:6px}
+.pizza-desc{font-size:0.9rem;color:var(--muted)}
+.pizza-footer{display:flex;align-items:center;justify-content:space-between;padding:12px;border-top:1px solid #f0f0f0}
+.pizza-price{font-weight:700}
+.select-btn{background:var(--accent);color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer}
+.select-btn:hover{opacity:0.95}
+.order-panel{width:320px;background:var(--panel-bg);border-radius:8px;padding:16px;box-shadow:0 1px 6px rgba(0,0,0,0.04)}
+.order-empty{color:var(--muted)}
+.order-card{text-align:center}
+.order-image{width:100%;height:160px;object-fit:cover;border-radius:6px;margin-bottom:12px}
+.order-desc{color:var(--muted)}
+.order-price{margin-top:12px}
+.order-actions{margin-top:16px}
+.order-btn{background:var(--accent);color:#fff;border:none;padding:10px 16px;border-radius:6px;cursor:pointer}
+
+@media (max-width:900px){
+    .pizzas-content{flex-direction:column}
+    .order-panel{width:100%}
+}

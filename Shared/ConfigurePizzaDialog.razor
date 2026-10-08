@@ -1,0 +1,66 @@
+@using BlazingPizzaApp.API.Models
+@using BlazingPizzaApp.API.Services
+@inject OrderState OrderState
+
+@if (Special != null)
+{
+    <div class="dialog-overlay">
+        <div class="dialog">
+            <h3>@Special.Name</h3>
+            <p class="dialog-desc">@Special.Description</p>
+            <div class="dialog-price">Price: <strong>@Special.BasePrice:C</strong></div>
+
+            <div class="dialog-section">
+                <label>Size:</label>
+                <div>
+                    <label><input type="radio" @bind="SelectedSize" value="Small" /> Small</label>
+                    <label style="margin-left:10px"><input type="radio" @bind="SelectedSize" value="Medium" /> Medium</label>
+                    <label style="margin-left:10px"><input type="radio" @bind="SelectedSize" value="Large" /> Large</label>
+                </div>
+            </div>
+
+            <div class="dialog-actions">
+                <button class="btn btn-secondary" @onclick="OnCancel">Cancel</button>
+                <button class="btn btn-primary" @onclick="OnConfirm">Add</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public PizzaSpecial? Special { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> OnClose { get; set; }
+
+    private Pizza currentPizza = new Pizza();
+    private string SelectedSize { get; set; } = "Medium";
+
+    protected override void OnParametersSet()
+    {
+        if (Special != null)
+        {
+            currentPizza = new Pizza
+            {
+                PizzaSpecial = Special,
+                PizzaSpecialId = Special.Id,
+                DefaultSize = currentPizza.DefaultSize
+            };
+            SelectedSize = currentPizza.DefaultSize ?? "Medium";
+        }
+    }
+
+    private async Task OnCancel()
+    {
+        await OnClose.InvokeAsync(false);
+    }
+
+    private async Task OnConfirm()
+    {
+        // set chosen size
+        currentPizza.DefaultSize = SelectedSize;
+        OrderState.AddPizza(currentPizza);
+        await OnClose.InvokeAsync(true);
+    }
+}

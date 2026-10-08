@@ -1,0 +1,104 @@
+@page "/pizzaspecials"
+@using System.Net.Http.Json
+@inject HttpClient Http
+
+<div class="pizzas-page">
+    @if (showConfigure && configureSpecial != null)
+    {
+        <ConfigurePizzaDialog Special="configureSpecial" OnClose="HandleConfigureClose" />
+    }
+    <div class="pizzas-header">
+        <h2>Pizza Specials</h2>
+        <input class="search-input" placeholder="Search specials..." @bind="SearchTerm" @bind:event="oninput" />
+    </div>
+
+    <div class="pizzas-content">
+        <div class="pizzas-grid">
+            @foreach (var s in FilteredSpecials)
+            {
+                <div class="pizza-card">
+                    <div class="pizza-image-wrap">
+                        <img src="@Rooted(s.ImageUrl)" alt="@s.Name" />
+                    </div>
+                    <div class="pizza-body">
+                        <div class="pizza-title">@s.Name</div>
+                        <div class="pizza-desc">@s.Description</div>
+                    </div>
+                    <div class="pizza-footer">
+                        <div class="pizza-price">@s.BasePrice:C</div>
+                        <button class="select-btn" @onclick="() => SelectSpecial(s)">Select</button>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <aside class="order-panel">
+            <OrderSummary />
+
+            @if (selected == null)
+            {
+                <div class="order-empty">No pizza selected. Click Select on a pizza card to view details.</div>
+            }
+            else
+            {
+                <div class="order-card">
+                    <img class="order-image" src="@Rooted(selected.ImageUrl)" alt="@selected.Name" />
+                    <h3>@selected.Name</h3>
+                    <p class="order-desc">@selected.Description</p>
+                    <div class="order-price">Price: <strong>@selected.BasePrice:C</strong></div>
+                    <div class="order-actions">
+                        <button class="order-btn">Order</button>
+                    </div>
+                </div>
+            }
+        </aside>
+    </div>
+</div>
+
+@code {
+    private List<PizzaSpecial> specials = new List<PizzaSpecial>();
+    private string SearchTerm { get; set; } = string.Empty;
+    private PizzaSpecial? selected;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var items = await Http.GetFromJsonAsync<List<PizzaSpecial>>("/api/pizzaspecials");
+            specials = items ?? new List<PizzaSpecial>();
+        }
+        catch
+        {
+            specials = new List<PizzaSpecial>();
+        }
+    }
+
+    private IEnumerable<PizzaSpecial> FilteredSpecials
+        => string.IsNullOrWhiteSpace(SearchTerm)
+            ? specials
+            : specials.Where(s => (s.Name ?? string.Empty).Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) || (s.Description ?? string.Empty).Contains(SearchTerm, StringComparison.OrdinalIgnoreCase));
+    private bool showConfigure = false;
+    private PizzaSpecial? configureSpecial;
+
+    private void SelectSpecial(PizzaSpecial s)
+    {
+        // open configuration dialog for the selected special
+        configureSpecial = s;
+        showConfigure = true;
+    }
+
+    private async Task HandleConfigureClose(bool confirmed)
+    {
+        showConfigure = false;
+        if (confirmed && configureSpecial != null)
+        {
+            // show selected in right panel
+            selected = configureSpecial;
+        }
+        configureSpecial = null;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private static string Rooted(string? url)
+        => string.IsNullOrWhiteSpace(url) ? string.Empty : "/" + url.TrimStart('/');
+}
