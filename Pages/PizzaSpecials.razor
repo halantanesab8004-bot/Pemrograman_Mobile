@@ -11,6 +11,12 @@
         <h2>Pizza Specials</h2>
         <input class="search-input" placeholder="Search specials..." @bind="SearchTerm" @bind:event="oninput" />
     </div>
+    <!-- DEBUG: show counts to verify data binding -->
+    <div style="margin-bottom:6px;color:#333">Debug: specials.Count = @specials.Count; Filtered = @FilteredSpecials.Count()</div>
+    @if (!string.IsNullOrEmpty(loadError))
+    {
+        <div class="load-error" style="color:#b00020;margin:8px 0">Error loading pizza specials: @loadError</div>
+    }
 
     <div class="pizzas-content">
         <div class="pizzas-grid">
@@ -57,6 +63,7 @@
 
 @code {
     private List<PizzaSpecial> specials = new List<PizzaSpecial>();
+    private string? loadError;
     private string SearchTerm { get; set; } = string.Empty;
     private PizzaSpecial? selected;
 
@@ -67,8 +74,10 @@
             var items = await Http.GetFromJsonAsync<List<PizzaSpecial>>("/api/pizzaspecials");
             specials = items ?? new List<PizzaSpecial>();
         }
-        catch
+        catch (Exception ex)
         {
+            // Preserve exception message for debugging in UI (safe to show since app is local/dev).
+            loadError = ex.Message;
             specials = new List<PizzaSpecial>();
         }
     }

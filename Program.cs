@@ -1,5 +1,6 @@
 using BlazingPizzaApp.API.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,10 +17,19 @@ builder.Services.AddScoped<IPizzaSpecials, PizzaSpecialsDAL>();
 builder.Services.AddScoped<BlazingPizzaApp.API.Services.OrderState>();
 // Register HttpClient for server-side components to call backend APIs
 builder.Services.AddHttpClient();
+// Provide a default HttpClient instance with BaseAddress pointing to the local API
+// so components can use relative URIs like "/api/pizzaspecials".
+builder.Services.AddScoped(sp => new System.Net.Http.HttpClient { BaseAddress = new Uri("http://localhost:5123/") });
 builder.Services.AddSqlite<PizzaStoreContext>(
     builder.Configuration.GetConnectionString("PizzaStore") ?? "Data Source=pizza.db");
 
 var app = builder.Build();
+
+var webRootPath = Path.Combine(builder.Environment.ContentRootPath, "wwwroot");
+if (Directory.Exists(webRootPath))
+{
+    app.Environment.WebRootPath = webRootPath;
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -29,8 +39,13 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// Serve static files (for any CSS/images used by the Blazor UI)
-app.UseStaticFiles();
+// Serve static files from the project's wwwroot directory.
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new CompositeFileProvider(
+        new PhysicalFileProvider(app.Environment.WebRootPath),
+        app.Environment.WebRootFileProvider)
+});
 
 app.UseAuthorization();
 
