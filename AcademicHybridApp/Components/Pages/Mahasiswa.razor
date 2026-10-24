@@ -1,0 +1,352 @@
+@page "/mahasiswa"
+@inject MahasiswaService MahasiswaService
+@inject DosenService DosenService
+
+<PageTitle>Data Mahasiswa</PageTitle>
+
+<h1>Data Mahasiswa</h1>
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(successMessage))
+{
+    <div class="alert alert-success" role="alert">@successMessage</div>
+}
+
+@if (!isLoading && string.IsNullOrWhiteSpace(errorMessage) && dosens.Count == 0)
+{
+    <div class="alert alert-warning" role="alert">
+        Belum ada data dosen. Tambahkan data dosen terlebih dahulu sebelum menambah mahasiswa.
+    </div>
+}
+
+@if (deleteCandidate is not null)
+{
+    <div class="alert alert-warning" role="alert">
+        <p class="mb-2">
+            Yakin ingin menghapus mahasiswa <strong>@deleteCandidate.NamaMahasiswa</strong>
+            (NIM @deleteCandidate.Nim)?
+        </p>
+        <button type="button" class="btn btn-danger btn-sm me-2" @onclick="DeleteMahasiswaAsync" disabled="@isDeleting">
+            @(isDeleting ? "Menghapus..." : "Ya, Hapus")
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" @onclick="CancelDelete" disabled="@isDeleting">
+            Batal
+        </button>
+    </div>
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <p class="mb-0">Kelola data mahasiswa dan dosen wali melalui API AcademicApi.</p>
+    <button type="button" class="btn btn-primary" @onclick="ShowCreateForm" disabled="@(isLoading || dosens.Count == 0)">
+        Tambah Mahasiswa
+    </button>
+</div>
+
+@if (isLoading)
+{
+    <div class="alert alert-secondary" role="status">Memuat data mahasiswa...</div>
+}
+else if (mahasiswas.Count == 0)
+{
+    <div class="alert alert-info" role="status">Belum ada data mahasiswa.</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>NIM</th>
+                    <th>Nama Mahasiswa</th>
+                    <th>Email</th>
+                    <th>Angkatan</th>
+                    <th>Dosen Wali</th>
+                    <th class="text-end">Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var mahasiswa in mahasiswas)
+                {
+                    <tr>
+                        <td>@mahasiswa.Nim</td>
+                        <td>@mahasiswa.NamaMahasiswa</td>
+                        <td>@mahasiswa.Email</td>
+                        <td>@mahasiswa.Angkatan</td>
+                        <td>@mahasiswa.DosenWali.NamaDosen</td>
+                        <td class="text-end">
+                            <button type="button" class="btn btn-sm btn-warning me-2"
+                                    @onclick="() => ShowEditForm(mahasiswa)" disabled="@(isSaving || isDeleting)">
+                                Edit
+                            </button>
+                            <button type="button" class="btn btn-sm btn-danger"
+                                    @onclick="() => AskDelete(mahasiswa)" disabled="@(isSaving || isDeleting)">
+                                Hapus
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@if (showForm)
+{
+    <div class="card mt-4">
+        <div class="card-header">
+            @(editingId is null ? "Tambah Mahasiswa" : "Edit Mahasiswa")
+        </div>
+        <div class="card-body">
+            <EditForm @key="formVersion" Model="formModel" OnValidSubmit="SaveAsync">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" for="nim">NIM</label>
+                        <InputText id="nim" class="form-control" @bind-Value="formModel.Nim" disabled="@isSaving" />
+                        <ValidationMessage For="() => formModel.Nim" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="namaMahasiswa">Nama Mahasiswa</label>
+                        <InputText id="namaMahasiswa" class="form-control" @bind-Value="formModel.NamaMahasiswa" disabled="@isSaving" />
+                        <ValidationMessage For="() => formModel.NamaMahasiswa" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="email">Email</label>
+                        <InputText id="email" type="email" class="form-control" @bind-Value="formModel.Email" disabled="@isSaving" />
+                        <ValidationMessage For="() => formModel.Email" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="angkatan">Angkatan</label>
+                        <InputNumber id="angkatan" class="form-control" @bind-Value="formModel.Angkatan" disabled="@isSaving" />
+                        <ValidationMessage For="() => formModel.Angkatan" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="dosenId">Dosen Wali</label>
+                        <InputSelect id="dosenId" class="form-control" @bind-Value="formModel.DosenId" disabled="@isSaving">
+                            <option value="0">-- Pilih Dosen Wali --</option>
+                            @foreach (var dosen in dosens)
+                            {
+                                <option value="@dosen.DosenId">@dosen.Nidn - @dosen.NamaDosen</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="() => formModel.DosenId" />
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-success me-2" disabled="@(isSaving || dosens.Count == 0)">
+                        @(isSaving ? "Menyimpan..." : "Simpan")
+                    </button>
+                    <button type="button" class="btn btn-secondary" @onclick="CancelForm" disabled="@isSaving">
+                        Batal
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    private List<MahasiswaDto> mahasiswas = new();
+    private List<DosenDto> dosens = new();
+    private MahasiswaRequest formModel = new();
+    private int? editingId;
+    private bool showForm;
+    private bool isLoading = true;
+    private bool isSaving;
+    private bool isDeleting;
+    private string? errorMessage;
+    private string? successMessage;
+    private MahasiswaDto? deleteCandidate;
+    private int formVersion;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            var dosenData = await DosenService.GetAllAsync();
+            dosens = dosenData.ToList();
+
+            var mahasiswaData = await MahasiswaService.GetAllAsync();
+            mahasiswas = mahasiswaData.ToList();
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Tidak dapat terhubung ke API. Pastikan backend berjalan di http://localhost:5009.";
+        }
+        catch (TaskCanceledException)
+        {
+            errorMessage = "Permintaan ke API melebihi waktu tunggu.";
+        }
+        catch (DosenApiException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (MahasiswaApiException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Gagal memuat data mahasiswa: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ShowCreateForm()
+    {
+        if (dosens.Count == 0)
+        {
+            errorMessage = "Belum ada data dosen. Tambahkan data dosen terlebih dahulu.";
+            return;
+        }
+
+        editingId = null;
+        formModel = new MahasiswaRequest();
+        formVersion++;
+        showForm = true;
+        deleteCandidate = null;
+        errorMessage = null;
+        successMessage = null;
+    }
+
+    private void ShowEditForm(MahasiswaDto mahasiswa)
+    {
+        editingId = mahasiswa.MahasiswaId;
+        formModel = new MahasiswaRequest
+        {
+            Nim = mahasiswa.Nim,
+            NamaMahasiswa = mahasiswa.NamaMahasiswa,
+            Email = mahasiswa.Email,
+            Angkatan = mahasiswa.Angkatan,
+            DosenId = mahasiswa.DosenId
+        };
+        formVersion++;
+        showForm = true;
+        deleteCandidate = null;
+        errorMessage = null;
+        successMessage = null;
+    }
+
+    private void CancelForm()
+    {
+        showForm = false;
+        editingId = null;
+    }
+
+    private async Task SaveAsync()
+    {
+        isSaving = true;
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            if (editingId is null)
+            {
+                await MahasiswaService.CreateAsync(formModel);
+                successMessage = "Data mahasiswa berhasil ditambahkan.";
+            }
+            else
+            {
+                await MahasiswaService.UpdateAsync(editingId.Value, formModel);
+                successMessage = "Data mahasiswa berhasil diperbarui.";
+            }
+
+            showForm = false;
+            editingId = null;
+            await LoadAsync();
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Tidak dapat terhubung ke API. Pastikan backend berjalan di http://localhost:5009.";
+        }
+        catch (TaskCanceledException)
+        {
+            errorMessage = "Permintaan ke API melebihi waktu tunggu.";
+        }
+        catch (MahasiswaApiException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Gagal menyimpan data mahasiswa: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void AskDelete(MahasiswaDto mahasiswa)
+    {
+        deleteCandidate = mahasiswa;
+        showForm = false;
+        editingId = null;
+        errorMessage = null;
+        successMessage = null;
+    }
+
+    private void CancelDelete()
+    {
+        deleteCandidate = null;
+    }
+
+    private async Task DeleteMahasiswaAsync()
+    {
+        if (deleteCandidate is null)
+        {
+            return;
+        }
+
+        isDeleting = true;
+        errorMessage = null;
+        successMessage = null;
+        var namaMahasiswa = deleteCandidate.NamaMahasiswa;
+        var nim = deleteCandidate.Nim;
+
+        try
+        {
+            await MahasiswaService.DeleteAsync(deleteCandidate.MahasiswaId);
+            deleteCandidate = null;
+            await LoadAsync();
+            successMessage = $"Data mahasiswa {namaMahasiswa} ({nim}) berhasil dihapus.";
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Tidak dapat terhubung ke API. Pastikan backend berjalan di http://localhost:5009.";
+        }
+        catch (TaskCanceledException)
+        {
+            errorMessage = "Permintaan ke API melebihi waktu tunggu.";
+        }
+        catch (MahasiswaApiException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Gagal menghapus data mahasiswa: {ex.Message}";
+        }
+        finally
+        {
+            isDeleting = false;
+        }
+    }
+}

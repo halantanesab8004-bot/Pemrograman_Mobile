@@ -1,0 +1,315 @@
+@page "/dosen"
+@inject DosenService DosenService
+
+<PageTitle>Data Dosen</PageTitle>
+
+<h1>Data Dosen</h1>
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(successMessage))
+{
+    <div class="alert alert-success" role="alert">@successMessage</div>
+}
+
+@if (deleteCandidate is not null)
+{
+    <div class="alert alert-warning" role="alert">
+        <p class="mb-2">
+            Yakin ingin menghapus dosen <strong>@deleteCandidate.NamaDosen</strong>
+            (NIDN @deleteCandidate.Nidn)?
+        </p>
+        <button type="button" class="btn btn-danger btn-sm me-2" @onclick="DeleteDosenAsync" disabled="@isDeleting">
+            @(isDeleting ? "Menghapus..." : "Ya, Hapus")
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" @onclick="CancelDelete" disabled="@isDeleting">
+            Batal
+        </button>
+    </div>
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <p class="mb-0">Kelola data dosen melalui API AcademicApi.</p>
+    <button type="button" class="btn btn-primary" @onclick="ShowCreateForm" disabled="@isLoading">
+        Tambah Dosen
+    </button>
+</div>
+
+@if (isLoading)
+{
+    <div class="alert alert-secondary" role="status">Memuat data dosen...</div>
+}
+else if (dosens.Count == 0)
+{
+    <div class="alert alert-info" role="status">Belum ada data dosen.</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>NIDN</th>
+                    <th>Nama Dosen</th>
+                    <th>Email</th>
+                    <th>Prodi</th>
+                    <th class="text-end">Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var dosen in dosens)
+                {
+                    <tr>
+                        <td>@dosen.Nidn</td>
+                        <td>@dosen.NamaDosen</td>
+                        <td>@dosen.Email</td>
+                        <td>@dosen.Prodi</td>
+                        <td class="text-end">
+                            <button type="button" class="btn btn-sm btn-warning me-2"
+                                    @onclick="() => ShowEditForm(dosen)" disabled="@(isSaving || isDeleting)">
+                                Edit
+                            </button>
+                            <button type="button" class="btn btn-sm btn-danger"
+                                    @onclick="() => AskDelete(dosen)" disabled="@(isSaving || isDeleting)">
+                                Hapus
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@if (showForm)
+{
+    <div class="card mt-4">
+        <div class="card-header">
+            @(editingId is null ? "Tambah Dosen" : "Edit Dosen")
+        </div>
+        <div class="card-body">
+            <EditForm @key="formVersion" Model="formModel" OnValidSubmit="SaveAsync">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" for="nidn">NIDN</label>
+                        <InputText id="nidn" class="form-control" @bind-Value="formModel.Nidn" disabled="@isSaving" />
+                        <ValidationMessage For="() => formModel.Nidn" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="namaDosen">Nama Dosen</label>
+                        <InputText id="namaDosen" class="form-control" @bind-Value="formModel.NamaDosen" disabled="@isSaving" />
+                        <ValidationMessage For="() => formModel.NamaDosen" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="email">Email</label>
+                        <InputText id="email" type="email" class="form-control" @bind-Value="formModel.Email" disabled="@isSaving" />
+                        <ValidationMessage For="() => formModel.Email" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="prodi">Prodi</label>
+                        <InputText id="prodi" class="form-control" @bind-Value="formModel.Prodi" disabled="@isSaving" />
+                        <ValidationMessage For="() => formModel.Prodi" />
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-success me-2" disabled="@isSaving">
+                        @(isSaving ? "Menyimpan..." : "Simpan")
+                    </button>
+                    <button type="button" class="btn btn-secondary" @onclick="CancelForm" disabled="@isSaving">
+                        Batal
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    private List<DosenDto> dosens = new();
+    private DosenRequest formModel = new();
+    private int? editingId;
+    private bool showForm;
+    private bool isLoading = true;
+    private bool isSaving;
+    private bool isDeleting;
+    private string? errorMessage;
+    private string? successMessage;
+    private DosenDto? deleteCandidate;
+    private int formVersion;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            var data = await DosenService.GetAllAsync();
+            dosens = data.ToList();
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Tidak dapat terhubung ke API. Pastikan backend berjalan di http://localhost:5009.";
+        }
+        catch (TaskCanceledException)
+        {
+            errorMessage = "Permintaan ke API melebihi waktu tunggu.";
+        }
+        catch (DosenApiException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Gagal memuat data dosen: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ShowCreateForm()
+    {
+        editingId = null;
+        formModel = new DosenRequest();
+        formVersion++;
+        showForm = true;
+        deleteCandidate = null;
+        errorMessage = null;
+        successMessage = null;
+    }
+
+    private void ShowEditForm(DosenDto dosen)
+    {
+        editingId = dosen.DosenId;
+        formModel = new DosenRequest
+        {
+            Nidn = dosen.Nidn,
+            NamaDosen = dosen.NamaDosen,
+            Email = dosen.Email,
+            Prodi = dosen.Prodi
+        };
+        formVersion++;
+        showForm = true;
+        deleteCandidate = null;
+        errorMessage = null;
+        successMessage = null;
+    }
+
+    private void CancelForm()
+    {
+        showForm = false;
+        editingId = null;
+    }
+
+    private async Task SaveAsync()
+    {
+        isSaving = true;
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            if (editingId is null)
+            {
+                await DosenService.CreateAsync(formModel);
+                successMessage = "Data dosen berhasil ditambahkan.";
+            }
+            else
+            {
+                await DosenService.UpdateAsync(editingId.Value, formModel);
+                successMessage = "Data dosen berhasil diperbarui.";
+            }
+
+            showForm = false;
+            editingId = null;
+            await LoadAsync();
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Tidak dapat terhubung ke API. Pastikan backend berjalan di http://localhost:5009.";
+        }
+        catch (TaskCanceledException)
+        {
+            errorMessage = "Permintaan ke API melebihi waktu tunggu.";
+        }
+        catch (DosenApiException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Gagal menyimpan data dosen: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void AskDelete(DosenDto dosen)
+    {
+        deleteCandidate = dosen;
+        showForm = false;
+        editingId = null;
+        errorMessage = null;
+        successMessage = null;
+    }
+
+    private void CancelDelete()
+    {
+        deleteCandidate = null;
+    }
+
+    private async Task DeleteDosenAsync()
+    {
+        if (deleteCandidate is null)
+        {
+            return;
+        }
+
+        isDeleting = true;
+        errorMessage = null;
+        successMessage = null;
+        var namaDosen = deleteCandidate.NamaDosen;
+
+        try
+        {
+            await DosenService.DeleteAsync(deleteCandidate.DosenId);
+            deleteCandidate = null;
+            await LoadAsync();
+            successMessage = $"Data dosen {namaDosen} berhasil dihapus.";
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Tidak dapat terhubung ke API. Pastikan backend berjalan di http://localhost:5009.";
+        }
+        catch (TaskCanceledException)
+        {
+            errorMessage = "Permintaan ke API melebihi waktu tunggu.";
+        }
+        catch (DosenApiException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Gagal menghapus data dosen: {ex.Message}";
+        }
+        finally
+        {
+            isDeleting = false;
+        }
+    }
+}
